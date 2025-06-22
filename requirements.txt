@@ -39,17 +39,3 @@ Pygments==2.14.0
 Cython==0.29.36
 dacite==1.8.1
 
-# Jupyter / notebook compatibility
-ipython==7.34.0
-ipywidgets==7.7.5
-jupyter_core==4.11.2
-jupyterlab_widgets==1.1.7
-prompt_toolkit==3.0.36
-pexpect==4.8.0
-ptyprocess==0.7.0
-matplotlib-inline==0.1.6
-
-# Parsing / validation
-jsonschema==4.17.3
-fastjsonschema==2.16.2
-pydantic==1.10.8
