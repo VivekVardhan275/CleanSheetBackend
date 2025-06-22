@@ -1,16 +1,21 @@
+# Core scientific stack
 numpy==1.23.5
 pandas==1.5.3
 scikit-learn==1.1.3
 scipy==1.9.3
-pycaret==3.0.4
 xgboost==1.6.2
 lightgbm==3.3.5
+
+# PyCaret and related ML/TS/EDA tools
+pycaret==3.0.4
 sktime==0.16.1
 category_encoders==2.6.1
 autofeat==2.1.3
 pyod==1.1.0
 phik==0.12.3
 imbalanced-learn==0.10.1
+
+# EDA and visualizations
 ydata-profiling==4.1.2
 scikit-plot==0.3.7
 htmlmin==0.1.12
@@ -19,8 +24,12 @@ seaborn==0.11.2
 plotly==5.14.1
 plotly-resampler==0.8.3.2
 kaleido==0.2.1
+
+# Web UI / dashboards
 dash==2.11.1
 Flask==2.2.5
+
+# Utilities
 psutil==5.9.5
 PyYAML==6.0.1
 simplejson==3.17.6
@@ -29,6 +38,8 @@ orjson==3.9.10
 Pygments==2.14.0
 Cython==0.29.36
 dacite==1.8.1
+
+# Jupyter / notebook compatibility
 ipython==7.34.0
 ipywidgets==7.7.5
 jupyter_core==4.11.2
@@ -37,6 +48,8 @@ prompt_toolkit==3.0.36
 pexpect==4.8.0
 ptyprocess==0.7.0
 matplotlib-inline==0.1.6
+
+# Parsing / validation
 jsonschema==4.17.3
 fastjsonschema==2.16.2
 pydantic==1.10.8
