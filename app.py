@@ -2,10 +2,6 @@ from flask import Flask
 from flask_cors import CORS
 from flask import Flask, request, send_file, jsonify
 import pandas as pd
-import io
-import uuid
-import zipfile
-import requests
 from pycaret.classification import setup as clf_setup
 from pycaret.classification import get_config
 from ydata_profiling import ProfileReport
@@ -210,4 +206,4 @@ def manual_clean():
     )
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
