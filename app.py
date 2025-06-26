@@ -1,15 +1,10 @@
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
-
 import pandas as pd
 import numpy as np
 import io, uuid, zipfile, json
-
-from pycaret.classification import setup as clf_setup, get_config
 from ydata_profiling import ProfileReport
-from autofeat import AutoFeatRegressor
-
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder, OneHotEncoder
 
 app = Flask(__name__)
 CORS(app, origins="*")
@@ -18,8 +13,6 @@ CORS(app, origins="*")
 @app.route('/api/default-clean', methods=['POST'])
 def auto_clean():
     df = None
-
-    # Load dataset
     if 'file' in request.files:
         file = request.files['file']
         df = pd.read_csv(file) if file.filename.endswith('.csv') else pd.read_excel(file)
@@ -32,8 +25,6 @@ def auto_clean():
         return jsonify({'error': 'No file or data_url provided'}), 400
 
     df = df.copy()
-
-    # Handle missing values
     for col in df.columns:
         if df[col].isnull().sum() > 0:
             if pd.api.types.is_numeric_dtype(df[col]):
@@ -41,29 +32,7 @@ def auto_clean():
             else:
                 df[col].fillna(df[col].mode().iloc[0] if not df[col].mode().empty else "Unknown", inplace=True)
 
-    # PyCaret setup
-    try:
-        clf_setup(data=df, preprocess=True, session_id=42, verbose=False, html=False)
-        cleaned_df = get_config("X")
-    except Exception as e:
-        print(f"[PyCaret fallback]: {e}")
-        cleaned_df = df.copy()
-
-    # AutoFeat
-    try:
-        numeric_df = cleaned_df.select_dtypes(include='number').dropna()
-        if not numeric_df.empty:
-            dummy_target = numeric_df.iloc[:, 0]
-            feat_engineer = AutoFeatRegressor(verbose=0)
-            X_feat = feat_engineer.fit_transform(numeric_df, dummy_target)
-            cleaned_df = pd.concat([
-                X_feat,
-                cleaned_df.select_dtypes(exclude='number').reset_index(drop=True)
-            ], axis=1)
-    except Exception as e:
-        print(f"[AutoFeat fallback]: {e}")
-
-    # Generate EDA
+    cleaned_df = df
     try:
         profile = ProfileReport(cleaned_df, title="Post-Cleaning EDA Report", minimal=False, explorative=True)
         eda_html_str = profile.to_html()
@@ -71,7 +40,6 @@ def auto_clean():
         print(f"[EDA fallback]: {e}")
         eda_html_str = "<html><body>EDA generation failed.</body></html>"
 
-    # Package results
     csv_buffer = io.StringIO()
     cleaned_df.to_csv(csv_buffer, index=False)
     csv_buffer.seek(0)
@@ -117,7 +85,7 @@ def manual_clean():
         if col in df.columns:
             df.drop(columns=[col], inplace=True)
 
-    # Imputation
+    # Handle missing values
     for col, strategy in config.get('imputation', {}).items():
         if col not in df.columns:
             continue
@@ -132,7 +100,7 @@ def manual_clean():
         elif strategy == 'constant':
             df[col].fillna("Unknown", inplace=True)
 
-    # Outlier handling (IQR)
+    # Handle outliers
     if config.get('outlier_handling', {}).get('method') == 'iqr':
         for col in df.select_dtypes(include='number').columns:
             Q1 = df[col].quantile(0.25)
@@ -147,9 +115,13 @@ def manual_clean():
         if col not in df.columns:
             continue
         if method == 'onehot':
-            dummies = pd.get_dummies(df[col], prefix=col)
+            ohe = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+            reshaped = df[[col]].astype(str)
+            encoded = ohe.fit_transform(reshaped)
+            encoded_cols = ohe.get_feature_names_out([col])
+            encoded_df = pd.DataFrame(encoded, columns=encoded_cols, index=df.index)
             df.drop(columns=[col], inplace=True)
-            df = pd.concat([df, dummies], axis=1)
+            df = pd.concat([df, encoded_df], axis=1)
         elif method == 'label':
             le = LabelEncoder()
             df[col] = le.fit_transform(df[col].astype(str))
@@ -165,18 +137,6 @@ def manual_clean():
             scaler = MinMaxScaler()
             df[col] = scaler.fit_transform(df[[col]])
 
-    # AutoFeat
-    try:
-        numeric_df = df.select_dtypes(include='number').dropna()
-        if not numeric_df.empty:
-            dummy_target = numeric_df.iloc[:, 0]
-            feat_engineer = AutoFeatRegressor(verbose=0)
-            X_feat = feat_engineer.fit_transform(numeric_df, dummy_target)
-            df = pd.concat([X_feat, df.select_dtypes(exclude='number').reset_index(drop=True)], axis=1)
-    except Exception as e:
-        print(f"[AutoFeat fallback]: {e}")
-
-    # EDA
     try:
         profile = ProfileReport(df, title="Post-Manual-Cleaning EDA", minimal=False, explorative=True)
         eda_html_str = profile.to_html()
@@ -184,7 +144,6 @@ def manual_clean():
         print(f"[EDA fallback]: {e}")
         eda_html_str = "<html><body>EDA generation failed.</body></html>"
 
-    # Output ZIP
     csv_buffer = io.StringIO()
     df.to_csv(csv_buffer, index=False)
     csv_buffer.seek(0)
